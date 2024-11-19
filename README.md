@@ -19,7 +19,8 @@ Comprehensive PowerShell script that automatically generates detailed Exchange O
 ## Quick Start
 1. Download the script
 2. Run in PowerShell
-3. Get instant mailbox analytics
+   `powershell -ExecutionPolicy Bypass -File .\ExchangeOnlineMailboxReport.ps1`
+4. Get instant mailbox analytics
 
 ## Output Files
 - Detailed CSV report with all mailbox data
