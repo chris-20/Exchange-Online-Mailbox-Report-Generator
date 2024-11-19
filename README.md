@@ -27,6 +27,6 @@ Comprehensive PowerShell script that automatically generates detailed Exchange O
 - Console output with live progress
 
 ## Tags
-#ExchangeOnline #PowerShell #Microsoft365 #MailboxManagement #ITAdmin #EmailManagement #ExchangeReporting
+#ExchangeOnline #PowerShell #Microsoft365 #MailboxManagement #EmailManagement #ExchangeReporting
 
 Created to simplify Exchange Online mailbox reporting and provide quick access to essential mailbox statistics.
