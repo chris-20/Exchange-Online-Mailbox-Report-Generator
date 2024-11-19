@@ -4,6 +4,21 @@
 #   🔄 Last Updated: 19.11.2024                             #
 #===========================================================#
 
+<#
+.SYNOPSIS
+    Creates a detailed report of Exchange Online mailbox details.
+.DESCRIPTION
+    This PowerShell script collects comprehensive information about Exchange Online mailboxes 
+    (size, type, item count, last access) and creates both a CSV export and a clear summary 
+    in TXT format.
+.EXAMPLE
+    PS> .\ExchangeMailboxReport.ps1
+    (Creates a detailed mailbox report as CSV and a summary as TXT file)
+.NOTES
+    License: MIT
+    Version: 1.0
+#>
+
 # Function to create styled headers
 function Write-StyledHeader {
     param ($Text)
