@@ -78,9 +78,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 MIT License - feel free to use and modify for your needs.
 
-## Author
-[Your Name/Organization]
-
 ## Version History
 - 1.0.0 (2024-03-19)
   - Initial release
@@ -98,10 +95,3 @@ For issues or questions:
 1. Open an issue in this repository
 2. Provide error messages and script version
 3. Describe your Exchange Online environment
-
-## Future Enhancements
-- [ ] Advanced filtering options
-- [ ] Custom report templates
-- [ ] Multiple export formats
-- [ ] Enhanced error logging
-- [ ] Scheduled execution support
