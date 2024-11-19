@@ -40,7 +40,7 @@ A PowerShell script that generates comprehensive reports of Exchange Online mail
 3. Run the script in PowerShell
 
 ```powershell
-.\ExchangeOnlineMailboxReport.ps1
+powershell -ExecutionPolicy Bypass -File .\ExchangeOnlineMailboxReport.ps1
 ```
 
 ## Usage
