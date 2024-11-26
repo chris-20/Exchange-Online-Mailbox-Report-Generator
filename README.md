@@ -16,7 +16,7 @@ Comprehensive PowerShell script that automatically generates detailed Exchange O
 - PowerShell 5.1 or higher
 - Exchange Online Admin permissions
 
-# Example Report
+## Example Report
 
 The following figure shows a sample report for Exchange Online mailboxes in CSV format.
 
