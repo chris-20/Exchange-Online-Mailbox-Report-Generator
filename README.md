@@ -2,6 +2,12 @@
 
 Comprehensive PowerShell script that automatically generates detailed Exchange Online mailbox reports. Perfect for IT administrators who need quick insights into their Exchange Online environment. The tool provides detailed analytics about mailbox sizes, types, and usage patterns in both CSV and readable summary formats.
 
+## Example Report
+
+The following figure shows a sample report for Exchange Online mailboxes in CSV format.
+
+![grafik](https://github.com/user-attachments/assets/5d3c1163-9c79-419b-9701-a6de7f0ac5f0)
+
 ## Features
 - 📊 Complete mailbox inventory including sizes, types and statistics
 - 💾 Automated CSV export for detailed analysis and data processing
@@ -10,12 +16,6 @@ Comprehensive PowerShell script that automatically generates detailed Exchange O
 - 🛡️ Built-in error handling and progress tracking
 - ✨ Professional formatted console output
 - 🔧 Automatic module dependency check and installation
-
-## Example Report
-
-The following figure shows a sample report for Exchange Online mailboxes in CSV format.
-
-![grafik](https://github.com/user-attachments/assets/5d3c1163-9c79-419b-9701-a6de7f0ac5f0)
 
 ## Requirements
 - Exchange Online PowerShell V3 Module
