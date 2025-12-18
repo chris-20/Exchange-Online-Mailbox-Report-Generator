@@ -24,7 +24,8 @@ The following figure shows a sample report for Exchange Online mailboxes in CSV 
 
 ## Quick Start
 1. Download the script
-2. Run in PowerShell
+2. Run in PowerShell 7
+   `pwd`
    `powershell -ExecutionPolicy Bypass -File .\ExchangeOnlineMailboxReport.ps1`
 4. Get instant mailbox analytics
 
