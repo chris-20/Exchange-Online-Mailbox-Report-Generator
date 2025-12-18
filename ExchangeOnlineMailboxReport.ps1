@@ -1,25 +1,28 @@
-﻿#===========================================================#
-#   📧 Exchange Online Mailbox Report Tool v1.0              #
+#===========================================================#
+#   📧 Exchange Online Mailbox Report Tool v2.1              #
 #   🔧 Created: November 2024                                #
-#   🔄 Last Updated: 19.11.2024                             #
+#   🔄 Last Updated: December 2025                           #
 #===========================================================#
 
 <#
 .SYNOPSIS
     Creates a detailed report of Exchange Online mailbox details.
 .DESCRIPTION
-    This PowerShell script collects comprehensive information about Exchange Online mailboxes 
-    (size, type, item count, last access) and creates both a CSV export and a clear summary 
-    in TXT format.
-.EXAMPLE
-    PS> .\ExchangeMailboxReport.ps1
-    (Creates a detailed mailbox report as CSV and a summary as TXT file)
+    Collects comprehensive information about Exchange Online mailboxes
+    and exports a CSV report plus a TXT summary.
+    Uses modern browser-based authentication (default EXO V3).
 .NOTES
     License: MIT
-    Version: 1.0
+    Version: 2.1
+    - Modern browser authentication only
+    - Compatible with ExchangeOnlineManagement v3.x+
+    - MFA supported
 #>
 
-# Function to create styled headers
+# =========================
+# UI FUNCTIONS
+# =========================
+
 function Write-StyledHeader {
     param ($Text)
     $width = 60
@@ -29,91 +32,53 @@ function Write-StyledHeader {
     Write-Host "$border`n" -ForegroundColor Cyan
 }
 
-# Function for styled section headers
 function Write-SectionHeader {
     param ($Text, $Icon)
     Write-Host "`n$Icon $Text $Icon" -ForegroundColor Yellow
     Write-Host ("─" * 50) -ForegroundColor DarkGray
 }
 
-# Function to format file sizes
 function Format-FileSize {
     param ([long]$Size)
-    if ($Size -gt 1TB) {
-        return "$([math]::Round($Size / 1TB, 2)) TB"
-    }
-    elseif ($Size -gt 1GB) {
-        return "$([math]::Round($Size / 1GB, 2)) GB"
-    }
-    else {
-        return "$([math]::Round($Size / 1MB, 2)) MB"
-    }
+    if ($Size -ge 1TB) { return "$([math]::Round($Size / 1TB, 2)) TB" }
+    elseif ($Size -ge 1GB) { return "$([math]::Round($Size / 1GB, 2)) GB" }
+    else { return "$([math]::Round($Size / 1MB, 2)) MB" }
 }
 
-# Function to check and install the Exchange Online module
+# =========================
+# MODULE INITIALIZATION
+# =========================
+
 function Initialize-ExchangeModule {
     Write-Host "🔍 Checking Exchange Online Management Module..." -ForegroundColor Yellow
-    
-    # Check if module is installed
-    $module = Get-Module -Name ExchangeOnlineManagement -ListAvailable
-    
+
+    $module = Get-Module ExchangeOnlineManagement -ListAvailable |
+              Sort-Object Version -Descending |
+              Select-Object -First 1
+
     if (-not $module) {
-        Write-Host "⚠️ Exchange Online Management Module is not installed." -ForegroundColor Yellow
-        $install = Read-Host "Do you want to install the module? (Y/N)"
-        
-        if ($install -eq 'Y') {
-            try {
-                Write-Host "📥 Installing Exchange Online Management Module..." -ForegroundColor Yellow
-                Install-Module -Name ExchangeOnlineManagement -Force -AllowClobber
-                Write-Host "✅ Module installed successfully." -ForegroundColor Green
-            }
-            catch {
-                Write-Host "❌ Installation error: $($_.Exception.Message)" -ForegroundColor Red
-                return $false
-            }
+        Write-Host "❌ ExchangeOnlineManagement module not found." -ForegroundColor Red
+        Write-Host "Installing module..." -ForegroundColor Yellow
+        try {
+            Install-Module ExchangeOnlineManagement -Force -AllowClobber
         }
-        else {
-            Write-Host "❌ Installation cancelled. Script cannot continue." -ForegroundColor Red
+        catch {
+            Write-Host "❌ Module installation failed: $($_.Exception.Message)" -ForegroundColor Red
             return $false
         }
     }
-    else {
-        Write-Host "✅ Exchange Online Management Module is installed (Version: $($module.Version))" -ForegroundColor Green
-        
-        # Check for available updates
-        try {
-            $onlineModule = Find-Module -Name ExchangeOnlineManagement
-            if ($onlineModule.Version -gt $module.Version) {
-                Write-Host "🔄 An update is available (New Version: $($onlineModule.Version))" -ForegroundColor Yellow
-                $update = Read-Host "Do you want to update the module? (Y/N)"
-                
-                if ($update -eq 'Y') {
-                    Update-Module -Name ExchangeOnlineManagement -Force
-                    Write-Host "✅ Module updated successfully." -ForegroundColor Green
-                }
-            }
-        }
-        catch {
-            Write-Host "⚠️ Warning: Could not check for updates. Continuing with current version." -ForegroundColor Yellow
-        }
-    }
-    
-    # Import module
-    Import-Module ExchangeOnlineManagement
+
+    Import-Module ExchangeOnlineManagement -ErrorAction Stop
+    Write-Host "✅ Module loaded (Version: $((Get-Module ExchangeOnlineManagement).Version))" -ForegroundColor Green
     return $true
 }
 
-# Function to test Exchange Online connection
+# =========================
+# CONNECTION HANDLING
+# =========================
+
 function Test-ExchangeConnection {
     try {
-        # Try to find an active Exchange Online session
-        Get-PSSession | Where-Object {
-            $_.ConfigurationName -eq "Microsoft.Exchange" -and 
-            $_.State -eq "Opened" -and 
-            $_.Availability -eq "Available"
-        } | Out-Null
-        
-        # Additional validation by executing an Exchange command
         Get-OrganizationConfig -ErrorAction Stop | Out-Null
         return $true
     }
@@ -122,208 +87,145 @@ function Test-ExchangeConnection {
     }
 }
 
-# Function to connect to Exchange Online
 function Connect-ToExchangeOnline {
-    # Check if already connected
     if (Test-ExchangeConnection) {
-        Write-Host "✅ Existing Exchange Online connection found." -ForegroundColor Green
+        Write-Host "✅ Existing Exchange Online connection detected." -ForegroundColor Green
         return $true
     }
-    
+
+    Write-Host "🔌 Connecting to Exchange Online..." -ForegroundColor Yellow
+    Write-Host "🌐 Browser-based authentication will open..." -ForegroundColor Cyan
+
     try {
-        Write-Host "🔌 No active connection found. Connecting to Exchange Online..." -ForegroundColor Yellow
-        Connect-ExchangeOnline -ShowProgress $true
-        Write-Host "✅ Successfully connected to Exchange Online." -ForegroundColor Green
-        return $true
+        Connect-ExchangeOnline -ShowBanner:$false
+        Start-Sleep -Seconds 2
+
+        if (Test-ExchangeConnection) {
+            $org = Get-OrganizationConfig
+            Write-Host "✅ Connected to tenant: $($org.DisplayName)" -ForegroundColor Green
+            return $true
+        }
+        else {
+            Write-Host "❌ Connection verification failed." -ForegroundColor Red
+            return $false
+        }
     }
     catch {
-        Write-Host "❌ Error connecting to Exchange Online: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "❌ Connection error: $($_.Exception.Message)" -ForegroundColor Red
         return $false
     }
 }
 
-# Function to get all mailbox details
+# =========================
+# DATA COLLECTION
+# =========================
+
 function Get-AllMailboxDetails {
-    try {
-        Write-Host "📊 Collecting mailbox information..." -ForegroundColor Yellow
-        
-        # Array for results
-        $mailboxDetails = @()
-        $totalSize = 0
-        $userMailboxCount = 0
-        
-        # Get all mailboxes
-        $mailboxes = Get-Mailbox -ResultSize Unlimited
-        $totalMailboxes = $mailboxes.Count
-        $currentMailbox = 0
-        
-        foreach ($mailbox in $mailboxes) {
-            $currentMailbox++
-            Write-Progress -Activity "📫 Processing Mailboxes" -Status "Mailbox $currentMailbox of $totalMailboxes" `
-                          -PercentComplete (($currentMailbox / $totalMailboxes) * 100)
-            
-            # Get mailbox statistics
-            $stats = Get-MailboxStatistics -Identity $mailbox.UserPrincipalName
-            
-            # Add size to total
-            if ($stats.TotalItemSize -match "\((.*) bytes\)") {
-                $totalSize += [long]$matches[1]
-            }
-            
-            # Count user mailboxes
-            if ($mailbox.RecipientTypeDetails -eq "UserMailbox") {
-                $userMailboxCount++
-            }
-            
-            # Store mailbox details in custom object
-            $mailboxInfo = [PSCustomObject]@{
-                DisplayName = $mailbox.DisplayName
-                EmailAddress = $mailbox.PrimarySmtpAddress
-                MailboxType = $mailbox.RecipientTypeDetails
-                TotalItemSize = $stats.TotalItemSize
-                ItemCount = $stats.ItemCount
-                LastLogonTime = $stats.LastLogonTime
-                Database = $mailbox.Database
-                Enabled = $mailbox.IsEnabled
-            }
-            
-            # Add to array
-            $mailboxDetails += $mailboxInfo
+    Write-Host "📊 Collecting mailbox data..." -ForegroundColor Yellow
+
+    $mailboxes = Get-Mailbox -ResultSize Unlimited
+    $results = @()
+    $totalSize = 0
+    $userMailboxCount = 0
+    $i = 0
+
+    foreach ($mb in $mailboxes) {
+        $i++
+        Write-Progress -Activity "Processing Mailboxes" `
+            -Status "$i / $($mailboxes.Count)" `
+            -PercentComplete (($i / $mailboxes.Count) * 100)
+
+        $stats = Get-MailboxStatistics -Identity $mb.UserPrincipalName
+
+        if ($stats.TotalItemSize -match '\((\d+) bytes\)') {
+            $totalSize += [int64]$matches[1]
         }
-        
-        Write-Progress -Activity "Processing Mailboxes" -Completed
-        
-        # Create summary
-        $summary = [PSCustomObject]@{
-            TotalMailboxes = $totalMailboxes
-            UserMailboxes = $userMailboxCount
-            OtherMailboxes = $totalMailboxes - $userMailboxCount
-            TotalSizeBytes = $totalSize
-            TotalSizeGB = [math]::Round($totalSize / 1GB, 2)
-            TotalSizeTB = [math]::Round($totalSize / 1TB, 2)
-            MailboxDetails = $mailboxDetails
+
+        if ($mb.RecipientTypeDetails -eq 'UserMailbox') {
+            $userMailboxCount++
         }
-        
-        # Display summary
-        Write-Host "`n=== 📊 Mailbox Summary ===" -ForegroundColor Cyan
-        Write-Host "📬 Total Mailboxes:     $($summary.TotalMailboxes)" -ForegroundColor Green
-        Write-Host "👤 User Mailboxes:      $($summary.UserMailboxes)" -ForegroundColor Green
-        Write-Host "📁 Other Mailbox Types: $($summary.OtherMailboxes)" -ForegroundColor Green
-        Write-Host "💾 Total Size:          $($summary.TotalSizeGB) GB ($($summary.TotalSizeTB) TB)" -ForegroundColor Green
-        Write-Host "============================`n" -ForegroundColor Cyan
-        
-        return $summary
+
+        $results += [PSCustomObject]@{
+            DisplayName       = $mb.DisplayName
+            EmailAddress      = $mb.PrimarySmtpAddress
+            MailboxType       = $mb.RecipientTypeDetails
+            TotalItemSize     = $stats.TotalItemSize
+            ItemCount         = $stats.ItemCount
+            LastLogonTime     = $stats.LastLogonTime
+            ArchiveEnabled    = $mb.ArchiveStatus
+        }
     }
-    catch {
-        Write-Host "❌ Error retrieving mailbox details: $($_.Exception.Message)" -ForegroundColor Red
-        return $null
+
+    Write-Progress -Activity "Processing Mailboxes" -Completed
+
+    return [PSCustomObject]@{
+        TotalMailboxes   = $mailboxes.Count
+        UserMailboxes    = $userMailboxCount
+        OtherMailboxes   = $mailboxes.Count - $userMailboxCount
+        TotalSizeBytes   = $totalSize
+        MailboxDetails   = $results
     }
 }
 
-# Main program
+# =========================
+# MAIN
+# =========================
+
 function Main {
     Clear-Host
-    Write-StyledHeader "📧 Exchange Online Mailbox Report Tool"
-    
-    # Show welcome message
-    @"
-    👋 Welcome to the Exchange Online Mailbox Report Tool
-    🔍 This tool will:
-       • Check and verify Exchange Online connection
-       • Collect detailed mailbox information
-       • Generate comprehensive reports
-       • Provide storage analytics
-"@ | Write-Host -ForegroundColor White
+    Write-StyledHeader "📧 Exchange Online Mailbox Report Tool v2.1"
 
-    # Initialize module
     Write-SectionHeader "Module Initialization" "🔧"
-    if (-not (Initialize-ExchangeModule)) {
-        Write-Host "❌ Module initialization failed. Exiting..." -ForegroundColor Red
-        return
-    }
-    Write-Host "✅ Module initialization completed" -ForegroundColor Green
-    
-    # Establish connection
+    if (-not (Initialize-ExchangeModule)) { return }
+
     Write-SectionHeader "Connection Status" "🔌"
-    if (Connect-ToExchangeOnline) {
-        Write-Host "✅ Successfully connected to Exchange Online" -ForegroundColor Green
-        
-        # Get mailboxes
-        Write-SectionHeader "Data Collection" "📊"
-        $summary = Get-AllMailboxDetails
-        
-        if ($summary) {
-            # Display enhanced summary
-            Write-StyledHeader "📈 Mailbox Analytics Summary"
-            @"
-    📬 Total Mailboxes:     $($summary.TotalMailboxes)
-    👤 User Mailboxes:      $($summary.UserMailboxes)
-    📁 Other Mailboxes:     $($summary.OtherMailboxes)
-    💾 Total Storage:       $(Format-FileSize $summary.TotalSizeBytes)
-"@ | Write-Host -ForegroundColor White
+    if (-not (Connect-ToExchangeOnline)) { return }
 
-            # Export reports
-            Write-SectionHeader "Report Generation" "📝"
-            
-            $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-            $exportPath = ".\MailboxReport_$timestamp.csv"
-            $summaryPath = ".\MailboxSummary_$timestamp.txt"
-            
-            # Export to CSV
-            Write-Host "📑 Generating detailed report..." -ForegroundColor Yellow
-            $summary.MailboxDetails | Export-Csv -Path $exportPath -NoTypeInformation -Encoding UTF8
-            Write-Host "✅ Report exported to: $((Get-Item $exportPath).FullName)" -ForegroundColor Green
-            
-            # Create enhanced summary file
-            @"
-╔════════════════════════════════════════════════════════╗
-║            Exchange Online Mailbox Summary              ║
-╠════════════════════════════════════════════════════════╣
-  📅 Generated: $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss')
+    Write-SectionHeader "Data Collection" "📊"
+    $summary = Get-AllMailboxDetails
 
-  📊 MAILBOX STATISTICS
-  ────────────────────
-  📬 Total Mailboxes:     $($summary.TotalMailboxes)
-  👤 User Mailboxes:      $($summary.UserMailboxes)
-  📁 Other Mailboxes:     $($summary.OtherMailboxes)
-  💾 Total Storage:       $(Format-FileSize $summary.TotalSizeBytes)
+    Write-StyledHeader "📈 Mailbox Summary"
+    Write-Host "📬 Total Mailboxes: $($summary.TotalMailboxes)"
+    Write-Host "👤 User Mailboxes:  $($summary.UserMailboxes)"
+    Write-Host "📁 Other Mailboxes: $($summary.OtherMailboxes)"
+    Write-Host "💾 Total Storage:   $(Format-FileSize $summary.TotalSizeBytes)"
 
-  💡 QUICK INSIGHTS
-  ────────────────
-  • User Mailbox Ratio:   $([math]::Round(($summary.UserMailboxes / $summary.TotalMailboxes) * 100, 1))%
-  • Avg Size per Mailbox: $(Format-FileSize ($summary.TotalSizeBytes / $summary.TotalMailboxes))
+    Write-SectionHeader "Report Generation" "📝"
+    $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
+    $csv = ".\MailboxReport_$ts.csv"
+    $txt = ".\MailboxSummary_$ts.txt"
 
-  🔍 GENERATED BY
-  ────────────────
-  Exchange Online Mailbox Report Tool v1.0
-╚════════════════════════════════════════════════════════╝
-"@ | Out-File -FilePath $summaryPath -Encoding UTF8
-            Write-Host "✅ Summary exported to: $((Get-Item $summaryPath).FullName)" -ForegroundColor Green
-            
-            # Connection management
-            Write-SectionHeader "Session Management" "🔌"
-            $disconnect = Read-Host "Do you want to disconnect from Exchange Online? (Y/N)"
-            if ($disconnect -eq 'Y') {
-                Write-Host "🔄 Disconnecting..." -ForegroundColor Yellow
-                Disconnect-ExchangeOnline -Confirm:$false
-                Write-Host "✅ Successfully disconnected from Exchange Online" -ForegroundColor Green
-            }
-            else {
-                Write-Host "ℹ️ Connection remains active" -ForegroundColor Cyan
-            }
-        }
+    $summary.MailboxDetails | Export-Csv $csv -NoTypeInformation -Encoding UTF8
+
+@"
+Exchange Online Mailbox Summary
+Generated: $(Get-Date)
+
+Total Mailboxes: $($summary.TotalMailboxes)
+User Mailboxes:  $($summary.UserMailboxes)
+Other Mailboxes: $($summary.OtherMailboxes)
+Total Storage:   $(Format-FileSize $summary.TotalSizeBytes)
+"@ | Out-File $txt -Encoding UTF8
+
+    Write-Host "✅ CSV: $csv" -ForegroundColor Green
+    Write-Host "✅ TXT: $txt" -ForegroundColor Green
+
+    Write-SectionHeader "Session Management" "🔌"
+    if ((Read-Host "Disconnect from Exchange Online? (Y/N)") -eq 'Y') {
+        Disconnect-ExchangeOnline -Confirm:$false
+        Write-Host "✅ Disconnected." -ForegroundColor Green
     }
-    
-    Write-StyledHeader "🏁 Operation Completed Successfully"
-    Write-Host "Thank you for using the Exchange Online Mailbox Report Tool! 👋`n" -ForegroundColor Yellow
+
+    Write-StyledHeader "🏁 Script Execution Completed"
 }
 
-# Run script with enhanced error handling
+# =========================
+# RUN
+# =========================
+
 try {
     Main
 }
 catch {
-    Write-StyledHeader "❌ Error Occurred"
-    Write-Host "An unexpected error occurred: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Please check the error and try again." -ForegroundColor Yellow
+    Write-Host "❌ Fatal Error: $($_.Exception.Message)" -ForegroundColor Red
 }
