@@ -19,7 +19,7 @@ The following figure shows a sample report for Exchange Online mailboxes in CSV 
 
 ## Requirements
 - Exchange Online PowerShell V3 Module
-- PowerShell 5.1 or higher
+- PowerShell 7 or higher
 - Exchange Online Admin permissions
 
 ## Quick Start
