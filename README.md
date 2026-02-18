@@ -2,7 +2,8 @@
 
 Comprehensive PowerShell script that automatically generates detailed Exchange Online mailbox reports. Perfect for IT administrators who need quick insights into their Exchange Online environment. The tool provides detailed analytics about mailbox sizes, types, and usage patterns in both CSV and readable summary formats.
 
-> **Note:** This script is read-only and uses **GET commands only**. It only collects and outputs data and does not modify any Exchange Online settings or mailboxes.
+> **Note:** This script is read-only regarding Exchange Online. It only uses **Get** cmdlets to retrieve information and does not modify mailboxes or tenant settings.  
+> It may install/import the ExchangeOnlineManagement module locally if required.
 
 ## Example Report
 
